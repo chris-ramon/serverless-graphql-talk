@@ -18,7 +18,13 @@ Amplify.configure({
   aws_appsync_region: process.env.REACT_APP_AWS_REGION,
 });
 
-const AppWithAuth = withAuthenticator(App, false, [], null, null);
+const config = {
+  signUpConfig: {
+    hiddenDefaults: ['phone_number']
+  }
+};
+
+const AppWithAuth = withAuthenticator(App, config, [], null, null);
 
 ReactDOM.render(<AppWithAuth />, document.getElementById('root'));
 

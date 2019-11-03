@@ -113,6 +113,11 @@ Resources:
           AttributeDataType: String
           Mutable: false
           Required: true
+        - Name: phone
+          AttributeDataType: Number
+          DeveloperOnlyAttribute: true
+          Mutable: true
+          Required: false
 
   GraphQLServiceRoleLambdaInvokePolicy:
     Type: AWS::IAM::Policy
