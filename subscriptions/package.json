@@ -1,6 +1,9 @@
 {
   "name": "subscriptions",
   "version": "1.0.0",
+	"engines": {
+		"node": "10.17.0"
+	},
   "description": "export AWS_NAMESPACE=starwars",
   "main": "index.js",
   "scripts": {
