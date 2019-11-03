@@ -8,6 +8,7 @@ class App extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
+      cognitoUser: undefined,
       graphqlSubscription: {},
       humans: [],
     };
@@ -62,7 +63,7 @@ class App extends React.Component {
       }
     `;
     const response = await API.graphql(graphqlOperation(query));
-    this.setState({ humans: response.data.humans });
+    this.setState({ humans: response.data.humans, cognitoUser });
   }
 
   shouldComponentUpdate(nextProps, nextState) {
@@ -80,9 +81,12 @@ class App extends React.Component {
       );
     });
 
+    const { cognitoUser } = this.state;
+
     return (
       <div className="App">
         <div className="App-main">
+          {cognitoUser && <button onClick={() => Auth.signOut()}>Sign Out {cognitoUser.getUsername()}</button>}
           <ul>
             {humans}
           </ul>
