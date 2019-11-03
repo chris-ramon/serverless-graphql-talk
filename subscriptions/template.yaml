@@ -1,0 +1,31 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+
+Parameters:
+  AwsNamespace:
+    Type: String
+    Description: Used to generate namespaced AWS resources
+  AwsAppSyncUrl:
+    Type: String
+    Description: Used for AWS AppSync Subscriptions.
+
+Resources:
+  LambdaFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: !Sub ${AwsNamespace}-lambda-subscriptions
+      Handler: src/index.handler
+      Runtime: nodejs8.10
+      CodeUri: ./
+      MemorySize: 128
+      Timeout: 60
+      Environment:
+        Variables:
+          AWS_APPSYNC_URL: !Sub ${AwsAppSyncUrl}
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - "appsync:GraphQL"
+              Resource: '*'

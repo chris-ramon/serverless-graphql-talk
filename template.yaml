@@ -1,0 +1,272 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+
+Parameters:
+  AwsNamespace:
+    Type: String
+    Description: Used to generate namespaced AWS resources
+
+Resources:
+  LambdaFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: !Sub ${AwsNamespace}-lambda
+      Handler: index.handler
+      Runtime: nodejs8.10
+      CodeUri: ./src
+      MemorySize: 128
+      Timeout: 60
+
+  CognitoUserPoolClient:
+    Type: "AWS::Cognito::UserPoolClient"
+    Properties:
+      ClientName: !Sub ${AwsNamespace}
+      UserPoolId: !Ref CognitoUserPool
+
+  CognitoIdentityPool:
+    Type: "AWS::Cognito::IdentityPool"
+    Properties:
+      IdentityPoolName: !Sub ${AwsNamespace}
+      AllowUnauthenticatedIdentities: true
+      CognitoIdentityProviders:
+        - ClientId: !Ref CognitoUserPoolClient
+          ProviderName: !GetAtt CognitoUserPool.ProviderName
+
+  CognitoUnAuthorizedRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Federated: "cognito-identity.amazonaws.com"
+            Action:
+              - "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringEquals:
+                "cognito-identity.amazonaws.com:aud": !Ref CognitoIdentityPool
+              "ForAnyValue:StringLike":
+                "cognito-identity.amazonaws.com:amr": unauthenticated
+      Policies:
+        - PolicyName: "CognitoUnauthorizedPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "mobileanalytics:PutEvents"
+                  - "cognito-sync:*"
+                Resource: "*"
+
+  CognitoAuthorizedRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Federated: "cognito-identity.amazonaws.com"
+            Action:
+              - "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringEquals:
+                "cognito-identity.amazonaws.com:aud": !Ref CognitoIdentityPool
+              "ForAnyValue:StringLike":
+                "cognito-identity.amazonaws.com:amr": authenticated
+      Policies:
+        - PolicyName: "CognitoAuthorizedPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "mobileanalytics:PutEvents"
+                  - "cognito-sync:*"
+                  - "cognito-identity:*"
+                Resource: "*"
+              - Effect: "Allow"
+                Action:
+                  - "appsync:GraphQL"
+                Resource:
+                  - "*"
+
+  IdentityPoolRoleMapping:
+    Type: "AWS::Cognito::IdentityPoolRoleAttachment"
+    Properties:
+      IdentityPoolId: !Ref CognitoIdentityPool
+      Roles:
+        authenticated: !GetAtt CognitoAuthorizedRole.Arn
+        unauthenticated: !GetAtt CognitoUnAuthorizedRole.Arn
+
+  CognitoUserPool:
+    Type: "AWS::Cognito::UserPool"
+    Properties:
+      UserPoolName: !Sub ${AwsNamespace}-user-pool
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: false
+          Required: true
+
+  GraphQLServiceRoleLambdaInvokePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: AppSyncLambdaInvokePolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - lambda:*
+          Resource: "*"
+      Roles:
+      - !Ref GraphQLServiceRole
+
+  GraphQLAPI:
+    Type: "AWS::AppSync::GraphQLApi"
+    Properties:
+      Name: !Sub ${AwsNamespace}-GraphQLAPI
+      AuthenticationType: AWS_IAM
+      UserPoolConfig:
+        UserPoolId: !Ref CognitoUserPool
+        AwsRegion: !Sub ${AWS::Region}
+        DefaultAction: "ALLOW"
+
+  GraphQLServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - deepdish.amazonaws.com
+          Action:
+          - sts:AssumeRole
+
+  GraphQLDataSource:
+    Type: "AWS::AppSync::DataSource"
+    Properties:
+      Type: AWS_LAMBDA
+      ApiId: !GetAtt GraphQLAPI.ApiId
+      Name: RootDataSource
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt LambdaFunction.Arn
+      ServiceRoleArn: !GetAtt GraphQLServiceRole.Arn
+
+  GraphQLProductsSearchResolver:
+    Type: "AWS::AppSync::Resolver"
+    DependsOn: GraphQLSchema
+    Properties:
+      TypeName: Query
+      DataSourceName: !GetAtt GraphQLDataSource.Name
+      ApiId: !GetAtt GraphQLAPI.ApiId
+      FieldName: humans
+      RequestMappingTemplate: '{ "version" : "2017-02-28", "operation": "Invoke", "payload": { "field": "humans", "context": $utils.toJson($context) } }'
+      ResponseMappingTemplate: $util.toJson($context.result)
+
+  GraphQLAddProductsListingResolver:
+    Type: "AWS::AppSync::Resolver"
+    DependsOn: GraphQLSchema
+    Properties:
+      TypeName: Mutation
+      DataSourceName: !GetAtt GraphQLDataSource.Name
+      ApiId: !GetAtt GraphQLAPI.ApiId
+      FieldName: addHumans
+      RequestMappingTemplate: '{ "version" : "2017-02-28", "operation": "Invoke", "payload": { "field": "addHumans", "context": $utils.toJson($context) } }'
+      ResponseMappingTemplate: $util.toJson($context.result)
+
+  GraphQLSchema:
+    Type: "AWS::AppSync::GraphQLSchema"
+    Properties:
+      ApiId: !GetAtt GraphQLAPI.ApiId
+      Definition: |
+        schema {
+          query: Query
+          mutation: Mutation
+          subscription: Subscription
+        }
+
+        enum Episode { NEWHOPE, EMPIRE, JEDI }
+        
+        interface Character {
+          id: String!
+          name: String
+          friends: [Character]
+          appearsIn: [Episode]
+        }
+        
+        type Human implements Character {
+          id: String!
+          name: String
+          friends: [Character]
+          appearsIn: [Episode]
+          homePlanet: String
+        }
+
+        input HumanInput {
+          id: String!
+          name: String
+          homePlanet: String
+        }
+        
+        type Droid implements Character {
+          id: String!
+          name: String
+          friends: [Character]
+          appearsIn: [Episode]
+          primaryFunction: String
+        }
+        
+        type Query {
+          humans: [Human]
+          hero(episode: Episode): Character
+          human(id: String!): Human
+          droid(id: String!): Droid
+        }
+
+        type HumanConnection {
+          channel: String
+          humans: [Human]
+        }
+
+        type Mutation {
+          addHumans(channel: String!, input: [HumanInput]): HumanConnection
+        }
+
+        type Subscription {
+          subscribeToHumans(channel: String!): HumanConnection
+            @aws_subscribe(mutations: ["addHumans"])
+        }
+
+Outputs:
+  CognitoUserPoolId:
+    Value: !Ref CognitoUserPool
+    Description: The Pool ID of the Cognito User Pool
+    Export:
+      Name: !Sub ${AWS::StackName}-CognitoUserPoolId
+
+  CognitoUserPoolClientId:
+    Value: !Ref CognitoUserPoolClient
+    Description: The Cognito User Pool Client Id
+    Export:
+      Name: !Sub ${AWS::StackName}-CognitoUserPoolClientId
+
+  CognitoIdentityPoolId:
+    Value: !Ref CognitoIdentityPool
+    Description: The Cognito IdentityPool Id
+    Export:
+      Name: !Sub ${AWS::StackName}-CognitoIdentityPoolId
+
+  GraphQLAPIURL:
+    Value: !GetAtt GraphQLAPI.GraphQLUrl
+    Description: The Endpoint URL of the GraphQL API
+    Export:
+      Name: !Sub ${AWS::StackName}-GraphQLAPIURL

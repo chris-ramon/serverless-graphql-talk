@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  AwsNamespace:
+    Type: String
+    Description: Used to generate namespaced AWS resources
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AwsNamespace}-lambda-690d83c9-b2ba-4c13-a111-4c6e2de2a38a
+      AccessControl: AuthenticatedRead
