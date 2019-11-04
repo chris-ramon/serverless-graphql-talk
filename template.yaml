@@ -17,6 +17,20 @@ Resources:
       MemorySize: 128
       Timeout: 60
 
+  DynamoDB:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: 'humans'
+      AttributeDefinitions:
+      - AttributeName: 'HumanId'
+        AttributeType: 'S'
+      KeySchema:
+      - AttributeName: 'HumanId'
+        KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
   CognitoUserPoolClient:
     Type: "AWS::Cognito::UserPoolClient"
     Properties:
