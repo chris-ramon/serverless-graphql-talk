@@ -22,10 +22,10 @@ Resources:
     Properties:
       TableName: 'humans'
       AttributeDefinitions:
-      - AttributeName: 'HumanId'
+      - AttributeName: 'id'
         AttributeType: 'S'
       KeySchema:
-      - AttributeName: 'HumanId'
+      - AttributeName: 'id'
         KeyType: HASH
       ProvisionedThroughput:
         ReadCapacityUnits: 1
@@ -147,6 +147,20 @@ Resources:
       Roles:
       - !Ref GraphQLServiceRole
 
+  GraphQLServiceRoleDynamoDBPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: AppSyncDynamoDBPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:*
+          Resource: "*"
+      Roles:
+      - !Ref GraphQLServiceRole
+
   GraphQLAPI:
     Type: "AWS::AppSync::GraphQLApi"
     Properties:
@@ -169,6 +183,17 @@ Resources:
             - deepdish.amazonaws.com
           Action:
           - sts:AssumeRole
+
+  GraphQLDynamoDBDataSource:
+    Type: "AWS::AppSync::DataSource"
+    Properties:
+      Type: AMAZON_DYNAMODB
+      ApiId: !GetAtt GraphQLAPI.ApiId
+      Name: DynamoDBDataSource
+      DynamoDBConfig:
+        AwsRegion: !Sub ${AWS::Region}
+        TableName: humans
+      ServiceRoleArn: !GetAtt GraphQLServiceRole.Arn
 
   GraphQLDataSource:
     Type: "AWS::AppSync::DataSource"
@@ -200,6 +225,24 @@ Resources:
       ApiId: !GetAtt GraphQLAPI.ApiId
       FieldName: addHumans
       RequestMappingTemplate: '{ "version" : "2017-02-28", "operation": "Invoke", "payload": { "field": "addHumans", "context": $utils.toJson($context) } }'
+      ResponseMappingTemplate: $util.toJson($context.result)
+
+  GraphQLAddHumans2Resolver:
+    Type: "AWS::AppSync::Resolver"
+    DependsOn: GraphQLSchema
+    Properties:
+      TypeName: Mutation
+      DataSourceName: !GetAtt GraphQLDynamoDBDataSource.Name
+      ApiId: !GetAtt GraphQLAPI.ApiId
+      FieldName: addHumans2
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "PutItem",
+          "key" : {
+            "id": { "S" : "${context.arguments.id}" }
+          }
+        }
       ResponseMappingTemplate: $util.toJson($context.result)
 
   GraphQLSchema:
@@ -258,6 +301,7 @@ Resources:
 
         type Mutation {
           addHumans(channel: String!, input: [HumanInput]): HumanConnection
+          addHumans2(channel: String!, input: [HumanInput]): HumanConnection
         }
 
         type Subscription {
