@@ -166,7 +166,7 @@ Resources:
         LambdaFunctionArn: !GetAtt LambdaFunction.Arn
       ServiceRoleArn: !GetAtt GraphQLServiceRole.Arn
 
-  GraphQLProductsSearchResolver:
+  GraphQLHumansSearchResolver:
     Type: "AWS::AppSync::Resolver"
     DependsOn: GraphQLSchema
     Properties:
@@ -177,7 +177,7 @@ Resources:
       RequestMappingTemplate: '{ "version" : "2017-02-28", "operation": "Invoke", "payload": { "field": "humans", "context": $utils.toJson($context) } }'
       ResponseMappingTemplate: $util.toJson($context.result)
 
-  GraphQLAddProductsListingResolver:
+  GraphQLAddHumansResolver:
     Type: "AWS::AppSync::Resolver"
     DependsOn: GraphQLSchema
     Properties:
