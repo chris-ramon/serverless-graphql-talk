@@ -33,13 +33,28 @@ aws cloudformation delete-stack \
 	--stack-name "${AWS_NAMESPACE}-stack"
 
 
-### Test Subscription.
+### Test `addHumansLambda`.
 mutation {
-  addHumans(channel: "USER_IDENTITY_ID", input: {
+  addHumansLambda(channel: "us-east-1:b2ecfe41-616f-4cca-a212-2ac82d6e3fdd", input: [{
     id: "987",
-    name: "Test Human!",
+    name: "Test Human via Lambda!",
     homePlanet: "Earth"
-  }) {
+  }]) {
+    channel
+    humans {
+      id
+      name
+    }
+  }
+}
+
+### Test `addHumansDynamoDB`.
+mutation {
+  addHumansDynamoDB(channel: "us-east-1:b2ecfe41-616f-4cca-a212-2ac82d6e3fdd", input: [{
+    id: "887",
+    name: "Test Human via DynamoDB!",
+    homePlanet: "Earth"
+  }]) {
     channel
     humans {
       id

@@ -216,34 +216,39 @@ Resources:
       RequestMappingTemplate: '{ "version" : "2017-02-28", "operation": "Invoke", "payload": { "field": "humans", "context": $utils.toJson($context) } }'
       ResponseMappingTemplate: $util.toJson($context.result)
 
-  GraphQLAddHumansResolver:
+  GraphQLAddHumansLambdaResolver:
     Type: "AWS::AppSync::Resolver"
     DependsOn: GraphQLSchema
     Properties:
       TypeName: Mutation
       DataSourceName: !GetAtt GraphQLDataSource.Name
       ApiId: !GetAtt GraphQLAPI.ApiId
-      FieldName: addHumans
+      FieldName: addHumansLambda
       RequestMappingTemplate: '{ "version" : "2017-02-28", "operation": "Invoke", "payload": { "field": "addHumans", "context": $utils.toJson($context) } }'
       ResponseMappingTemplate: $util.toJson($context.result)
 
-  GraphQLAddHumans2Resolver:
+  GraphQLAddHumansDynamoDBResolver:
     Type: "AWS::AppSync::Resolver"
     DependsOn: GraphQLSchema
     Properties:
       TypeName: Mutation
       DataSourceName: !GetAtt GraphQLDynamoDBDataSource.Name
       ApiId: !GetAtt GraphQLAPI.ApiId
-      FieldName: addHumans2
+      FieldName: addHumansDynamoDB
       RequestMappingTemplate: |
+        #set($humans = [])
+        #foreach($item in ${ctx.args.input})
+            $util.qr($humans.add($util.dynamodb.toMapValues($item)))
+        #end
         {
-          "version" : "2017-02-28",
-          "operation" : "PutItem",
-          "key" : {
-            "id": { "S" : "${context.arguments.id}" }
-          }
+            "version" : "2018-05-29",
+            "operation" : "BatchPutItem",
+            "tables" : {
+                "humans": $utils.toJson($humans)
+            }
         }
-      ResponseMappingTemplate: $util.toJson($context.result)
+      ResponseMappingTemplate: |
+        $util.toJson({"humans": $ctx.result.data.humans, "channel": $ctx.args.channel})})
 
   GraphQLSchema:
     Type: "AWS::AppSync::GraphQLSchema"
@@ -300,13 +305,15 @@ Resources:
         }
 
         type Mutation {
-          addHumans(channel: String!, input: [HumanInput]): HumanConnection
-          addHumans2(channel: String!, input: [HumanInput]): HumanConnection
+          addHumansLambda(channel: String!, input: [HumanInput]): HumanConnection
+          addHumansDynamoDB(channel: String!, input: [HumanInput]): HumanConnection
         }
 
         type Subscription {
-          subscribeToHumans(channel: String!): HumanConnection
-            @aws_subscribe(mutations: ["addHumans"])
+          subscribeToHumansLambda(channel: String!): HumanConnection
+            @aws_subscribe(mutations: ["addHumansLambda"])
+          subscribeToHumansDynamoDB(channel: String!): HumanConnection
+            @aws_subscribe(mutations: ["addHumansDynamoDB"])
         }
 
 Outputs:

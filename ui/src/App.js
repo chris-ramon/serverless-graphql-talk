@@ -9,17 +9,18 @@ class App extends React.Component {
     super(props);
     this.state = {
       cognitoUser: undefined,
-      graphqlSubscription: {},
+      graphqlSubscriptionLambda: {},
+      graphqlSubscriptionDynamoDB: {},
       humans: [],
     };
   }
 
-  async setupSubscriptions(cognitoIdentityId) {
+  async setupSubscriptionsLambda(cognitoIdentityId) {
     const variables = { channel: cognitoIdentityId };
 
     const subscription = gql`
       subscription Humans($channel: String!) {
-        subscribeToHumans(channel: $channel) {
+        subscribeToHumansLambda(channel: $channel) {
           channel
           humans {
             id
@@ -34,16 +35,45 @@ class App extends React.Component {
         console.log('subsription error', error);
       },
       next: (payload) => {
-        const humans = payload.value.data.subscribeToHumans.humans;
+        const humans = payload.value.data.subscribeToHumansLambda.humans;
         this.setState({ humans: [...this.state.humans, ...humans]});
       },
     });
 
-    this.setState({ graphqlSubscription: subs });
+    this.setState({ graphqlSubscriptionLambda: subs });
+  }
+
+  async setupSubscriptionsDynamoDB(cognitoIdentityId) {
+    const variables = { channel: cognitoIdentityId };
+
+    const subscription = gql`
+      subscription Humans($channel: String!) {
+        subscribeToHumansDynamoDB(channel: $channel) {
+          channel
+          humans {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const subs = API.graphql(graphqlOperation(subscription, variables)).subscribe({
+      error: (error) => {
+        console.log('subsription error', error);
+      },
+      next: (payload) => {
+        const humans = payload.value.data.subscribeToHumansDynamoDB.humans;
+        this.setState({ humans: [...this.state.humans, ...humans]});
+      },
+    });
+
+    this.setState({ graphqlSubscriptionDynamoDB: subs });
   }
 
   async componentWillUnmount() {
-    this.state.graphqlSubscription.unsubscribe();
+    this.state.graphqlSubscriptionLambda.unsubscribe();
+    this.state.graphqlSubscriptionDynamoDB.unsubscribe();
   }
 
   async componentDidMount() {
@@ -52,7 +82,8 @@ class App extends React.Component {
     const key = `aws.cognito.identity-id.${identityPoolId}`;
     const cognitoIdentityId = cognitoUser.storage.getItem(key);
 
-    await this.setupSubscriptions(cognitoIdentityId);
+    await this.setupSubscriptionsLambda(cognitoIdentityId);
+    await this.setupSubscriptionsDynamoDB(cognitoIdentityId);
 
     const query = gql`
       query {
