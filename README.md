@@ -32,6 +32,15 @@ aws cloudformation delete-stack \
 aws cloudformation delete-stack \
 	--stack-name "${AWS_NAMESPACE}-stack"
 
+### Test `humans`
+query {
+  humans {
+    id
+    name
+    homePlanet
+  }
+}
+
 
 ### Test `addHumansLambda`.
 mutation {
