@@ -55,17 +55,22 @@ const humanData = {
 
 const humans = [luke, vader, han, leia, tarkin];
 
-const APPSYNC_URL = url.parse(process.env.AWS_APPSYNC_URL);
 
 exports.handler = async (event, context, callback) => {
-  console.log("received event: ", JSON.stringify(event.field));
+  console.log("received event: ", JSON.stringify(event));
 
-  const cognitoIdentityId = 'us-east-1:6f2b2b71-2ffb-4991-b6d8-41e40292736e';
+  const cognitoIdentityId = event.cognitoIdentityId;
   const humanIds = event.humanIds;
   return addHumans(cognitoIdentityId, humanIds);
 };
 
 async function addHumans(cognitoIdentityId, humanIds) {
+  if (!process.env.AWS_APPSYNC_URL) {
+    return Promise.reject(new Error("process.env.APPSYNC_URL is required"));
+  }
+
+  const APPSYNC_URL = url.parse(process.env.AWS_APPSYNC_URL);
+
   const humans = humanIds.map(humanId => {
     return humanData[humanId];
   });
@@ -80,7 +85,7 @@ async function addHumans(cognitoIdentityId, humanIds) {
   const data = {
       query: `
             mutation addHumans($channel: String!, $input: [HumanInput]) {
-              addHumans(channel: $channel, input: $input) {
+              addHumansLambda(channel: $channel, input: $input) {
                 channel
                 humans {
                   id
