@@ -9,5 +9,5 @@ Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub ${AwsNamespace}-lambda-58d3c996-bc32-4636-8ece-b7b7b605066e
+      BucketName: !Sub ${AwsNamespace}-lambda-60b77a97-ed05-45e2-a19f-2f0d1ec7dd63
       AccessControl: AuthenticatedRead
