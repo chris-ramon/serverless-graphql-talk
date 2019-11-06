@@ -46,7 +46,7 @@ aws cloudformation delete-stack \
   --stack-name "${AWS_NAMESPACE}-subscriptions-lambda-s3"
 ```
 
-#### Delete AWS Lambda stack
+#### Delete AWS Lambda stack
 ```
 aws cloudformation delete-stack \
   --stack-name "${AWS_NAMESPACE}-subscriptions-stack"
