@@ -6,6 +6,8 @@ export AWS_APPSYNC_URL=https://FAKE_AWS_APPSYNC_URL.appsync-api.us-east-1.amazon
 ```
 
 #### Deploy AWS Lambda's S3
+
+
 ```
 aws cloudformation deploy \
   --template-file lambda-s3.yaml \
@@ -36,10 +38,15 @@ aws cloudformation deploy \
 
 #### Delete AWS Lambda's S3 stack
 ```
+aws s3 rm "s3://${AWS_NAMESPACE}-lambda-60b77a97-ed05-45e2-a19f-2f0d1ec7dd63" --recursive || true
+```
+
+```
 aws cloudformation delete-stack \
   --stack-name "${AWS_NAMESPACE}-subscriptions-lambda-s3"
 ```
 
+#### Delete AWS Lambda stack
 ```
 aws cloudformation delete-stack \
   --stack-name "${AWS_NAMESPACE}-subscriptions-stack"

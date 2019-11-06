@@ -38,6 +38,10 @@ aws cloudformation deploy \
 
 #### Delete AWS Lambda's S3 stack
 ```
+aws s3 rm "s3://${AWS_NAMESPACE}-lambda-5b58ddba-b724-48a2-8afb-e39096af6ecf" --recursive || true
+```
+
+```
 aws cloudformation delete-stack \
   --stack-name "${AWS_NAMESPACE}-lambda-s3"
 ```
